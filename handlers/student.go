@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rajikaimal/tch-admin/db"
 	"github.com/rajikaimal/tch-admin/models"
+	"github.com/rajikaimal/tch-admin/utils"
 )
 
 type StudentHandler struct{}
@@ -90,21 +91,10 @@ func (h StudentHandler) RetrieveNotifications(c *gin.Context) {
 	}
 
 	for _, m := range mentions {
-		if !Contains(allRecipients, m) {
+		if !utils.Contains(allRecipients, m) {
 			allRecipients = append(allRecipients, m)
 		}
 	}
 
 	c.IndentedJSON(http.StatusOK, Recipient{Recipients: allRecipients})
-}
-
-// Contains checks if a slice contains a specific value
-func Contains(slice []string, value string) bool {
-	for _, elem := range slice {
-		if elem == value {
-			return true
-		}
-	}
-
-	return false
 }
