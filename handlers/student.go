@@ -22,13 +22,6 @@ type Recipient struct {
 	Recipients []string `json:"recipients"`
 }
 
-func (h StudentHandler) RegisterStudents(c *gin.Context) {
-	student := models.Student{Id: 2, Name: "John"}
-	db.DB.Create(&student)
-
-	c.IndentedJSON(http.StatusOK, nil)
-}
-
 func (h StudentHandler) GetCommonStudents(c *gin.Context) {
 	var students []models.Student
 	var commonStudents Student
