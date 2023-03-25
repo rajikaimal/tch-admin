@@ -10,7 +10,7 @@ import (
 
 type TeacherHandler struct{}
 
-type SuspendRequestBody struct {
+type SuspendReqBody struct {
 	Email string
 }
 
@@ -22,7 +22,7 @@ func (t TeacherHandler) RegisterStudents(c *gin.Context) {
 }
 
 func (t TeacherHandler) SuspendStudent(c *gin.Context) {
-	var requestBody SuspendRequestBody
+	var requestBody SuspendReqBody
 
 	if err := c.BindJSON(&requestBody); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, ErrorResponse{Message: "Invalid JSON"})

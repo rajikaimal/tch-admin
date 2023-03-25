@@ -21,4 +21,7 @@
 # Go workspace file
 go.work
 
+bin
+tmp
+
 # End of https://www.toptal.com/developers/gitignore/api/go

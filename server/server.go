@@ -3,7 +3,7 @@ package server
 import "github.com/rajikaimal/tch-admin/db"
 
 func Init() {
-	// connecto to db
+	// connect to db
 	db.ConnectToDB()
 	// initialize router
 	r := NewRouter()

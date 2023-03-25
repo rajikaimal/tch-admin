@@ -22,8 +22,12 @@ type Recipient struct {
 	Recipients []string `json:"recipients"`
 }
 
+type RetrieveNotificationReqBody struct {
+	Teacher      string
+	Notification string
+}
+
 func (h StudentHandler) GetCommonStudents(c *gin.Context) {
-	var students []models.Student
 	var commonStudents Student
 
 	qParam := c.Query("teacher")
@@ -43,6 +47,7 @@ func (h StudentHandler) GetCommonStudents(c *gin.Context) {
 		values = append(values, e)
 	}
 
+	var students []models.Student
 	db.DB.Model(&models.Student{}).
 		Select("DISTINCT students.email").
 		Joins("JOIN registers ON registers.student_id = students.id AND registers.student_email = students.email").
@@ -58,10 +63,16 @@ func (h StudentHandler) GetCommonStudents(c *gin.Context) {
 }
 
 func (h StudentHandler) RetrieveNotifications(c *gin.Context) {
-	var students []models.Student
+	var requestBody RetrieveNotificationReqBody
 
-	teacher := "teacher1@gmail.com"
-	notificationTxt := "Hello students! @student1@gmail.com @student2@gmail.com"
+	if err := c.BindJSON(&requestBody); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, ErrorResponse{Message: "Invalid JSON"})
+		return
+	}
+
+	teacher := requestBody.Teacher
+	notificationTxt := requestBody.Notification
+
 	re := regexp.MustCompile(`\b\w+@\w+\.\w+\b`)
 	mentions := re.FindAllString(notificationTxt, -1)
 
@@ -70,6 +81,7 @@ func (h StudentHandler) RetrieveNotifications(c *gin.Context) {
 		return
 	}
 
+	var students []models.Student
 	db.DB.Model(&models.Student{}).
 		Select("DISTINCT students.email").
 		Joins("JOIN registers ON registers.student_id = students.id AND registers.student_email = students.email").
