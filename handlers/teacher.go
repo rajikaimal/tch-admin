@@ -29,7 +29,7 @@ func (t TeacherHandler) SuspendStudent(c *gin.Context) {
 		return
 	}
 
-	db.DB.Debug().Model(&models.Student{}).
+	db.DB.Model(&models.Student{}).
 		Where("email = ?", requestBody.Email).
 		Update("suspended", true)
 

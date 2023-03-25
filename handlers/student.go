@@ -43,7 +43,7 @@ func (h StudentHandler) GetCommonStudents(c *gin.Context) {
 		values = append(values, e)
 	}
 
-	db.DB.Debug().Model(&models.Student{}).
+	db.DB.Model(&models.Student{}).
 		Select("DISTINCT students.email").
 		Joins("JOIN registers ON registers.student_id = students.id AND registers.student_email = students.email").
 		Joins("JOIN teachers ON registers.teacher_id = teachers.id AND registers.student_email = students.email").
@@ -70,7 +70,7 @@ func (h StudentHandler) RetrieveNotifications(c *gin.Context) {
 		return
 	}
 
-	db.DB.Debug().Model(&models.Student{}).
+	db.DB.Model(&models.Student{}).
 		Select("DISTINCT students.email").
 		Joins("JOIN registers ON registers.student_id = students.id AND registers.student_email = students.email").
 		Joins("JOIN teachers ON registers.teacher_id = teachers.id AND registers.student_email = students.email").
