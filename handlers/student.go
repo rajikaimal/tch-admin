@@ -73,11 +73,8 @@ func (h StudentHandler) RetrieveNotifications(c *gin.Context) {
 	teacher := requestBody.Teacher
 	notificationTxt := requestBody.Notification
 
-	re := regexp.MustCompile(`\b\w+@\w+\.\w+\b`)
-	mentions := re.FindAllString(notificationTxt, -1)
-
 	if teacher == "" || notificationTxt == "" {
-		c.IndentedJSON(http.StatusBadRequest, ErrorResponse{Message: "Missing teacher or notification text"})
+		c.IndentedJSON(http.StatusBadRequest, ErrorResponse{Message: "Missing teacher or notification text in request"})
 		return
 	}
 
@@ -94,6 +91,9 @@ func (h StudentHandler) RetrieveNotifications(c *gin.Context) {
 	for _, s := range students {
 		allRecipients = append(allRecipients, s.Email)
 	}
+
+	re := regexp.MustCompile(`\b\w+@\w+\.\w+\b`)
+	mentions := re.FindAllString(notificationTxt, -1)
 
 	for _, m := range mentions {
 		if !utils.Contains(allRecipients, m) {

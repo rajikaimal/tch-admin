@@ -10,15 +10,38 @@ import (
 
 type TeacherHandler struct{}
 
+type RegisterReqBody struct {
+	Teacher  string
+	Students []string
+}
+
 type SuspendReqBody struct {
 	Email string
 }
 
 func (t TeacherHandler) RegisterStudents(c *gin.Context) {
-	student := models.Student{Id: 2, Name: "John"}
-	db.DB.Create(&student)
+	var requestBody RegisterReqBody
 
-	c.IndentedJSON(http.StatusOK, nil)
+	if err := c.BindJSON(&requestBody); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, ErrorResponse{Message: "Invalid JSON"})
+		return
+	}
+
+	var newStudents []models.Student
+
+	for _, s := range requestBody.Students {
+		newStudents = append(newStudents, models.Student{Email: s})
+	}
+
+	var tch models.Teacher
+	var std []models.Student
+
+	db.DB.Model(&models.Teacher{}).Where("email = ?", requestBody.Teacher).Find(&tch)
+	db.DB.Model(&models.Student{}).Where("email = ?", "student3@gmail.com").Find(&std)
+
+	db.DB.Model(&tch).Association("Students").Append(&std)
+
+	c.Status(http.StatusNoContent)
 }
 
 func (t TeacherHandler) SuspendStudent(c *gin.Context) {
@@ -33,5 +56,5 @@ func (t TeacherHandler) SuspendStudent(c *gin.Context) {
 		Where("email = ?", requestBody.Email).
 		Update("suspended", true)
 
-	c.IndentedJSON(http.StatusOK, true)
+	c.Status(http.StatusNoContent)
 }
