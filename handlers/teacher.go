@@ -15,7 +15,7 @@ import (
 type TeacherHandler struct{}
 
 type CommonStudentReqQuery struct {
-	Teacher string
+	Teacher []string
 }
 
 type RegisterReqBody struct {
@@ -38,51 +38,6 @@ type Student struct {
 
 type Recipient struct {
 	Recipients []string `json:"recipients"`
-}
-
-func (t TeacherHandler) GetCommonStudents(c *gin.Context) {
-	qParam := CommonStudentReqQuery{Teacher: c.Query("teacher")}
-
-	// check if request query param exists
-	if qParam.Teacher == "" {
-		c.IndentedJSON(http.StatusBadRequest, ErrorResponse{Message: "Missing teacher query parameter"})
-		return
-	}
-
-	// validate request query param
-	if err := qParam.ValidateCommonStudentReqBody(); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, ErrorResponse{Message: err.Error()})
-		return
-	}
-
-	emails := []string{qParam.Teacher}
-
-	var fields []string
-	var values []interface{}
-
-	for _, e := range emails {
-		fields = append(fields, fmt.Sprintf("teachers.email = ?"))
-		values = append(values, e)
-	}
-
-	var commonStudents Student
-	var students []models.Student
-
-	if err := db.DB.Model(&models.Student{}).
-		Select("DISTINCT students.email").
-		Joins("JOIN registers ON registers.student_id = students.id AND registers.student_email = students.email").
-		Joins("JOIN teachers ON registers.teacher_id = teachers.id AND registers.student_email = students.email").
-		Where(strings.Join(fields, " OR "), values...).
-		Find(&students).Error; err != nil {
-		fmt.Println("Error when finding student: ", err)
-		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Message: "Error when finding students"})
-	}
-
-	for _, s := range students {
-		commonStudents.Students = append(commonStudents.Students, s.Email)
-	}
-
-	c.IndentedJSON(http.StatusOK, commonStudents)
 }
 
 func (t TeacherHandler) RegisterStudents(c *gin.Context) {
@@ -129,9 +84,50 @@ func (t TeacherHandler) RegisterStudents(c *gin.Context) {
 		return
 	}
 
-	db.DB.Model(&tch).Association("Students").Append(&stds)
+	if err := db.DB.Model(&tch).Association("Students").Append(&stds).Error; err != nil {
+		fmt.Println("Error when processing: ", err)
+		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Message: "Error when registering student(s)"})
+		return
+	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func (t TeacherHandler) GetCommonStudents(c *gin.Context) {
+	qParam := CommonStudentReqQuery{Teacher: c.QueryArray("teacher")}
+
+	// validate request query param
+	if err := qParam.ValidateCommonStudentReqBody(); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, ErrorResponse{Message: err.Error()})
+		return
+	}
+
+	var fields []string
+	var values []interface{}
+
+	for _, e := range qParam.Teacher {
+		fields = append(fields, fmt.Sprintf("teachers.email = ?"))
+		values = append(values, e)
+	}
+
+	var commonStudents Student
+	var students []models.Student
+
+	if err := db.DB.Debug().Model(&models.Student{}).
+		Select("DISTINCT students.email").
+		Joins("JOIN registers ON registers.student_id = students.id AND registers.student_email = students.email").
+		Joins("JOIN teachers ON registers.teacher_id = teachers.id AND registers.student_email = students.email").
+		Where(strings.Join(fields, " OR "), values...).
+		Find(&students).Error; err != nil {
+		fmt.Println("Error when finding student: ", err)
+		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Message: "Error when finding students"})
+	}
+
+	for _, s := range students {
+		commonStudents.Students = append(commonStudents.Students, s.Email)
+	}
+
+	c.IndentedJSON(http.StatusOK, commonStudents)
 }
 
 func (t TeacherHandler) SuspendStudent(c *gin.Context) {
@@ -185,12 +181,16 @@ func (h TeacherHandler) RetrieveNotifications(c *gin.Context) {
 	}
 
 	var students []models.Student
-	db.DB.Model(&models.Student{}).
+	if err := db.DB.Model(&models.Student{}).
 		Select("DISTINCT students.email").
 		Joins("JOIN registers ON registers.student_id = students.id AND registers.student_email = students.email").
 		Joins("JOIN teachers ON registers.teacher_id = teachers.id AND registers.student_email = students.email").
 		Where("registers.teacher_email = ?", teacher).
-		Find(&students)
+		Find(&students).Error; err != nil {
+		fmt.Println("Error when finding students: ", err)
+		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Message: "Error when finding students"})
+		return
+	}
 
 	var allRecipients []string
 

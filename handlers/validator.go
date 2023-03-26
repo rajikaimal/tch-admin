@@ -7,12 +7,14 @@ import (
 )
 
 func (q *CommonStudentReqQuery) ValidateCommonStudentReqBody() error {
-	if q.Teacher == "" {
+	if len(q.Teacher) == 0 {
 		return fmt.Errorf("Teacher's Email is required")
 	}
 
-	if utils.IsValidEmail(q.Teacher) == false {
-		return fmt.Errorf("Invalid Teacher's Email")
+	for _, email := range q.Teacher {
+		if utils.IsValidEmail(email) == false {
+			return fmt.Errorf("Invalid Teacher's Email")
+		}
 	}
 
 	return nil
