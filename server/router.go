@@ -10,15 +10,14 @@ func NewRouter() *gin.Engine {
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
-	studentHandler := new(handlers.StudentHandler)
 	teacherHandler := new(handlers.TeacherHandler)
 
 	v1 := router.Group("/api/")
 	{
 		v1.POST("/register", teacherHandler.RegisterStudents)
-		v1.GET("/commonstudents", studentHandler.GetCommonStudents)
+		v1.GET("/commonstudents", teacherHandler.GetCommonStudents)
 		v1.POST("/suspend", teacherHandler.SuspendStudent)
-		v1.POST("/retrievefornotifications", studentHandler.RetrieveNotifications)
+		v1.POST("/retrievefornotifications", teacherHandler.RetrieveNotifications)
 	}
 
 	return router
