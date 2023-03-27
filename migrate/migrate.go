@@ -3,15 +3,17 @@ package main
 import (
 	"fmt"
 
+	"github.com/rajikaimal/tch-admin/config"
 	"github.com/rajikaimal/tch-admin/db"
 	"github.com/rajikaimal/tch-admin/models"
 )
 
 func main() {
-	db.ConnectToDB()
+	config := config.InitConfig()
+	db := db.ConnectToDB(config.DB)
 
-	db.DB.AutoMigrate(&models.Teacher{})
-	db.DB.AutoMigrate(&models.Student{})
+	db.AutoMigrate(&models.Teacher{})
+	db.AutoMigrate(&models.Student{})
 
 	fmt.Println("Migrations completed!")
 }

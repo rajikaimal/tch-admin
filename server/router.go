@@ -3,14 +3,17 @@ package server
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/rajikaimal/tch-admin/handlers"
+	respository "github.com/rajikaimal/tch-admin/repository"
+	"gorm.io/gorm"
 )
 
-func NewRouter() *gin.Engine {
+func NewRouter(db *gorm.DB) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
-	teacherHandler := new(handlers.TeacherHandler)
+	teacherRepo := respository.NewTeacherRepo(db)
+	teacherHandler := handlers.TeacherHandler{TeacherRepo: teacherRepo}
 
 	v1 := router.Group("/api/")
 	{

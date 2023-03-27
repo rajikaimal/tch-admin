@@ -1,12 +1,17 @@
 package server
 
-import "github.com/rajikaimal/tch-admin/db"
+import (
+	"github.com/rajikaimal/tch-admin/config"
+	"github.com/rajikaimal/tch-admin/db"
+)
 
 func Start() {
+	// read config
+	config := config.InitConfig()
 	// connect to db
-	db.ConnectToDB()
+	db := db.ConnectToDB(config.DB)
 	// initialize router
-	r := NewRouter()
+	r := NewRouter(db)
 
 	r.Run("localhost:8083")
 }

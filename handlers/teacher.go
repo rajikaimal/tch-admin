@@ -1,18 +1,20 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
-	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rajikaimal/tch-admin/db"
 	"github.com/rajikaimal/tch-admin/models"
+	respository "github.com/rajikaimal/tch-admin/repository"
 	"github.com/rajikaimal/tch-admin/utils"
 )
 
-type TeacherHandler struct{}
+type TeacherHandler struct {
+	TeacherRepo respository.TRepo
+}
 
 type CommonStudentReqQuery struct {
 	Teacher []string
@@ -45,7 +47,7 @@ func (t TeacherHandler) RegisterStudents(c *gin.Context) {
 
 	// check if request body exists
 	if err := c.BindJSON(&requestBody); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, ErrorResponse{Message: InvalidRequBodyErr})
+		c.IndentedJSON(http.StatusBadRequest, ErrorResponse{Message: err.Error()})
 		return
 	}
 
@@ -55,9 +57,19 @@ func (t TeacherHandler) RegisterStudents(c *gin.Context) {
 		return
 	}
 
+	if err := t.RegisterStudentsHandler(&requestBody.Students, &requestBody.Teacher); err != nil {
+		fmt.Println("Error when registering student: ", err.Error())
+		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Message: err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func (t TeacherHandler) RegisterStudentsHandler(students *[]string, teacher *string) error {
 	var newStudents []models.Student
 
-	for _, s := range requestBody.Students {
+	for _, s := range *students {
 		newStudents = append(newStudents, models.Student{Email: s})
 	}
 
@@ -67,30 +79,35 @@ func (t TeacherHandler) RegisterStudents(c *gin.Context) {
 	var fields []string
 	var values []interface{}
 
-	for _, e := range requestBody.Students {
+	for _, e := range *students {
 		fields = append(fields, fmt.Sprintf("email = ?"))
 		values = append(values, e)
 	}
 
-	if err := db.DB.Model(&models.Teacher{}).Where("email = ?", requestBody.Teacher).Find(&tch).Error; err != nil {
+	if err := t.TeacherRepo.FindTeacher(*teacher, &tch); err != nil {
 		fmt.Println("Error when finding teacher: ", err)
-		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Message: "Couldn't find teacher"})
-		return
+		return errors.New("Couldn't find teacher")
 	}
 
-	if err := db.DB.Model(&models.Student{}).Where(strings.Join(fields, " OR "), values...).Find(&stds).Error; err != nil {
+	if tch.Email == "" {
+		return errors.New("Teacher not found")
+	}
+
+	if err := t.TeacherRepo.FindStudent(fields, values, &stds); err != nil {
 		fmt.Println("Error when finding student: ", err)
-		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Message: "Couldn't find student"})
-		return
+		return errors.New("Couldn't find student")
 	}
 
-	if err := db.DB.Model(&tch).Association("Students").Append(&stds).Error; err != nil {
+	if len(stds) == 0 {
+		return errors.New("Student(s) not found")
+	}
+
+	if err := t.TeacherRepo.RegisterStudent(&tch, &stds); err != nil {
 		fmt.Println("Error when processing: ", err)
-		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Message: "Error when registering student(s)"})
-		return
+		return errors.New("Error when registering student(s)")
 	}
 
-	c.Status(http.StatusNoContent)
+	return nil
 }
 
 func (t TeacherHandler) GetCommonStudents(c *gin.Context) {
@@ -102,32 +119,41 @@ func (t TeacherHandler) GetCommonStudents(c *gin.Context) {
 		return
 	}
 
+	var commonStudents Student
+	var students []models.Student
+
+	if err := t.GetCommonStudentHandler(qParam.Teacher, &commonStudents, students); err != nil {
+		fmt.Println("Error when processing", err)
+		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Message: err.Error()})
+		return
+	}
+
+	if len(commonStudents.Students) == 0 {
+		c.IndentedJSON(http.StatusOK, Student{Students: []string{}})
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, commonStudents)
+}
+
+func (t TeacherHandler) GetCommonStudentHandler(teachers []string, commonStudents *Student, students []models.Student) error {
 	var fields []string
 	var values []interface{}
 
-	for _, e := range qParam.Teacher {
+	for _, e := range teachers {
 		fields = append(fields, fmt.Sprintf("teachers.email = ?"))
 		values = append(values, e)
 	}
 
-	var commonStudents Student
-	var students []models.Student
-
-	if err := db.DB.Debug().Model(&models.Student{}).
-		Select("DISTINCT students.email").
-		Joins("JOIN registers ON registers.student_id = students.id AND registers.student_email = students.email").
-		Joins("JOIN teachers ON registers.teacher_id = teachers.id AND registers.student_email = students.email").
-		Where(strings.Join(fields, " OR "), values...).
-		Find(&students).Error; err != nil {
-		fmt.Println("Error when finding student: ", err)
-		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Message: "Error when finding students"})
+	if err := t.TeacherRepo.GetCommonStudents(fields, values, &students); err != nil {
+		return errors.New("Error getting asd common students")
 	}
 
 	for _, s := range students {
 		commonStudents.Students = append(commonStudents.Students, s.Email)
 	}
 
-	c.IndentedJSON(http.StatusOK, commonStudents)
+	return nil
 }
 
 func (t TeacherHandler) SuspendStudent(c *gin.Context) {
@@ -145,19 +171,42 @@ func (t TeacherHandler) SuspendStudent(c *gin.Context) {
 		return
 	}
 
-	// update sesponded field of student
-	if err := db.DB.Model(&models.Student{}).
-		Where("email = ?", requestBody.Email).
-		Update("suspended", true).Error; err != nil {
+	// update suspended field of student
+	if err := t.SuspendStudentHandler(requestBody.Email); err != nil {
 		fmt.Println("Error when processing", err)
-		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Message: "Error when suspeding student"})
+		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Message: err.Error()})
 		return
 	}
 
 	c.Status(http.StatusNoContent)
 }
 
-func (h TeacherHandler) RetrieveNotifications(c *gin.Context) {
+func (t TeacherHandler) SuspendStudentHandler(email string) error {
+	var student models.Student
+	// check if student exists
+	if err := t.TeacherRepo.FindOneStudent(email, &student); err != nil {
+		fmt.Println("Error when finding student: ", err)
+		return errors.New("Couldn't find student")
+	}
+
+	if student.Email == "" {
+		return errors.New("Student is not registered with the system")
+	}
+
+	if student.Suspended {
+		return errors.New("Student is already suspended")
+	}
+
+	// update sesponded field of student
+	if err := t.TeacherRepo.SuspendStudent(email); err != nil {
+		fmt.Println("Error when processing", err)
+		return errors.New("Error when suspending student")
+	}
+
+	return nil
+}
+
+func (t TeacherHandler) RetrieveNotifications(c *gin.Context) {
 	var requestBody RetrieveNotificationReqBody
 
 	// check if request body exists
@@ -180,32 +229,51 @@ func (h TeacherHandler) RetrieveNotifications(c *gin.Context) {
 		return
 	}
 
-	var students []models.Student
-	if err := db.DB.Model(&models.Student{}).
-		Select("DISTINCT students.email").
-		Joins("JOIN registers ON registers.student_id = students.id AND registers.student_email = students.email").
-		Joins("JOIN teachers ON registers.teacher_id = teachers.id AND registers.student_email = students.email").
-		Where("registers.teacher_email = ?", teacher).
-		Find(&students).Error; err != nil {
+	var allRecipients []string
+	if err := t.RetrieveNotificationsHandler(teacher, notificationTxt, &allRecipients); err != nil {
 		fmt.Println("Error when finding students: ", err)
-		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Message: "Error when finding students"})
+		c.IndentedJSON(http.StatusInternalServerError, ErrorResponse{Message: err.Error()})
 		return
 	}
 
-	var allRecipients []string
+	c.IndentedJSON(http.StatusOK, Recipient{Recipients: allRecipients})
+}
+
+func (t TeacherHandler) RetrieveNotificationsHandler(teacher string, notificationTxt string, allRecipients *[]string) error {
+	var students []models.Student
+	if err := t.TeacherRepo.RetrieveNotifications(teacher, &students); err != nil {
+		fmt.Println("Error when finding students: ", err)
+		return errors.New("Error when finding students")
+	}
 
 	for _, s := range students {
-		allRecipients = append(allRecipients, s.Email)
+		*allRecipients = append(*allRecipients, s.Email)
 	}
 
 	re := regexp.MustCompile(`\b\w+@\w+\.\w+\b`)
 	mentions := re.FindAllString(notificationTxt, -1)
 
-	for _, m := range mentions {
-		if !utils.Contains(allRecipients, m) {
-			allRecipients = append(allRecipients, m)
+	var fields []string
+	var values []interface{}
+
+	var studentsToRecieve []models.Student
+
+	for _, email := range mentions {
+		fields = append(fields, fmt.Sprintf("email = ?"))
+		values = append(values, email)
+	}
+
+	// check all the mentioned emails in Notification text exist
+	if err := t.TeacherRepo.FindStudentsForNotifications(fields, values, false, &studentsToRecieve); err != nil {
+		fmt.Println("Error when finding student: ", err)
+		return errors.New("Couldn't find student")
+	}
+
+	for _, s := range studentsToRecieve {
+		if !utils.Contains(*allRecipients, s.Email) {
+			*allRecipients = append(*allRecipients, s.Email)
 		}
 	}
 
-	c.IndentedJSON(http.StatusOK, Recipient{Recipients: allRecipients})
+	return nil
 }
