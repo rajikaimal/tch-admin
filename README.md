@@ -1,5 +1,11 @@
 # tch-admin
 
+Create .env for configs
+
+```
+mysql=''
+```
+
 ## Install
 
 ```
