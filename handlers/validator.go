@@ -2,19 +2,18 @@ package handlers
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/rajikaimal/tch-admin/utils"
 )
 
 func (q *CommonStudentReqQuery) ValidateCommonStudentReqBody() error {
 	if len(q.Teacher) == 0 {
-		return fmt.Errorf("Teacher's Email is required")
+		return errors.New("Teacher's Email is required")
 	}
 
 	for _, email := range q.Teacher {
 		if utils.IsValidEmail(email) == false {
-			return fmt.Errorf("Invalid Teacher's Email")
+			return errors.New("Invalid Teacher's Email")
 		}
 	}
 
