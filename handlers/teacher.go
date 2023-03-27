@@ -154,7 +154,7 @@ func (t TeacherHandler) GetCommonStudentHandler(teachers []string, commonStudent
 	}
 
 	if err := t.TeacherRepo.GetCommonStudents(fields, values, &students); err != nil {
-		return errors.New("Error getting asd common students")
+		return errors.New("Error getting common students")
 	}
 
 	for _, s := range students {

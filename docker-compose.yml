@@ -1,24 +1,26 @@
 version: '3'
 services:
+  mysql:
+    image: mysql:8.0
+    cap_add:
+      - SYS_NICE
+    restart: always
+    ports:
+      - "3306:3306"
+    volumes:
+      - db:/var/lib/mysql
+      # - ./db/init.sql/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - MYSQL_DATABASE=tchadmin
+      - MYSQL_ROOT_PASSWORD=secret-pwd
+      - MYSQL_PASSWORD=secret-pwd
   web:
     build: .
     ports:
       - "8080:8080"
     depends_on:
-      - mysqldb
-    environment:
-      - MYSQL=$MYSQLDB_CONFIG
-  mysqldb:
-    image: mysql:latest
-    restart: unless-stopped
-    env_file: ./.env
-    environment:
-      - MYSQL_ROOT_PASSWORD=$MYSQLDB_ROOT_PASSWORD
-      - MYSQL_DATABASE=$MYSQLDB_DATABASE
-    ports:
-      - $MYSQLDB_LOCAL_PORT:$MYSQLDB_DOCKER_PORT
-    volumes:
-      - db:/var/lib/mysql 
+      - mysql
 
-volumes: 
+volumes:
   db:
+    driver: local

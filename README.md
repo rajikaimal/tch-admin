@@ -3,14 +3,18 @@
 Create .env for configs
 
 ```
-mysql=''
+mysql="<username>:<password>@tcp(mysql:3306)/tchadmin?charset=utf8mb4&parseTime=True&loc=Local"
 ```
 
 ## Install
 
+### Docker
+
 ```
-$ docker-compose up
+$ docker-compose up --build
 ```
+
+### Without Docker
 
 ```
 $ go mod tidy

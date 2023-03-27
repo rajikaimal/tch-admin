@@ -13,5 +13,5 @@ func Start() {
 	// initialize router
 	r := NewRouter(db)
 
-	r.Run("localhost:8083")
+	r.Run(":8080")
 }
