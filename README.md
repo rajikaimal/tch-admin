@@ -1,6 +1,8 @@
 # tch-admin
 
-Create .env for configs
+Create .env at the root of the project for config
+
+Example:
 
 ```
 mysql="<username>:<password>@tcp(mysql:3306)/tchadmin?charset=utf8mb4&parseTime=True&loc=Local"
@@ -13,6 +15,8 @@ mysql="<username>:<password>@tcp(mysql:3306)/tchadmin?charset=utf8mb4&parseTime=
 ```
 $ docker-compose up --build
 ```
+
+Import `init.sql` to mysql
 
 ### Without Docker
 
