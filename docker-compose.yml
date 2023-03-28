@@ -7,19 +7,26 @@ services:
     restart: always
     ports:
       - "3306:3306"
+    command: --init-file /docker-entrypoint-initdb.d/init.sql
     volumes:
-      - db:/var/lib/mysql
-      # - ./db/init.sql/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       - MYSQL_DATABASE=tchadmin
       - MYSQL_ROOT_PASSWORD=secret-pwd
       - MYSQL_PASSWORD=secret-pwd
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
   web:
     build: .
     ports:
       - "8080:8080"
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
+
 
 volumes:
   db:
