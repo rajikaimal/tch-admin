@@ -26,3 +26,7 @@ $ go run migrate/migrate.go
 $ go run seed/seed.go
 $ go run main.go
 ```
+
+### Testing
+
+Import Postman collection from `./tch-admin.postman_collection.json`
